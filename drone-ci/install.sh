@@ -19,3 +19,6 @@ kubectl create secret generic drone-rpc-secret \
 kubectl create secret generic drone-ui-password \
     --from-literal=password=$DRONE_RUNNER_UI_PASSWORD \
     -n drone
+
+kubectl apply -f drone-ci-server.yaml -n drone
+kubectl apply -f drone-ci-runner.yaml -n drone
