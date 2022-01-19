@@ -1,0 +1,118 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: drone-runner
+  labels:
+    app: drone-runner
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: drone-runner
+  template:
+    metadata:
+      labels:
+        app: drone-runner
+    spec:
+      containers:
+      - name: runner
+        image: drone/drone-runner-kube:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: DRONE_RPC_HOST
+          value: "drone.drone.svc.cluster.local"
+        - name: DRONE_RPC_PROTO
+          value: "http"
+        - name: DRONE_RPC_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: drone-rpc-secret
+              key: rpc_secret
+        - name: DRONE_UI_USERNAME
+          value: "admin"
+        - name: DRONE_UI_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: drone-ui-password
+              key: password
+        - name: DRONE_GIT_ALWAYS_AUTH
+          value: "true"
+        - name: DRONE_NAMESPACE_DEFAULT
+          value: "drone"
+        - name: DRONE_RUNNER_VOLUMES
+          value: "/etc/ssl/certs/:/etc/ssl/certs/"
+
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: drone-runner
+spec:
+  rules:
+  - host: drone-runner.k3s.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: drone-runner
+            port:
+              name: http
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: drone-runner
+  labels:
+    app: drone-runner
+spec:
+  ports:
+  - name: http
+    port: 3000
+    targetPort: 3000
+  selector:
+    app: drone-runner
+  type: ClusterIP
+
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: drone-runner
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - pods/log
+  verbs:
+  - get
+  - create
+  - delete
+  - list
+  - watch
+  - update
+
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: drone-runner
+subjects:
+- kind: ServiceAccount
+  name: default
+roleRef:
+  kind: Role
+  name: drone-runner
+  apiGroup: rbac.authorization.k8s.io

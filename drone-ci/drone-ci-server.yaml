@@ -1,0 +1,106 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: drone
+  labels:
+    app: drone
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: drone
+  template:
+    metadata:
+      labels:
+        app: drone
+    spec:
+      containers:
+      - name: drone
+        image: drone/drone:2
+        env:
+        - name: DRONE_GITEA_SERVER
+          value: "https://git.local"
+        - name: DRONE_GITEA_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: gitea-client-credentials
+              key: client_id
+        - name: DRONE_GITEA_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: gitea-client-credentials
+              key: client_secret
+        - name: DRONE_GITEA_SKIP_VERIFY
+          value: "true"
+        - name: DRONE_GIT_ALWAYS_AUTH
+          value: "true"
+        - name: DRONE_RPC_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: drone-rpc-secret
+              key: rpc_secret
+        - name: DRONE_SERVER_HOST
+          value: "drone.k3s.local"
+        - name: DRONE_SERVER_PROTO
+          value: "https"
+        ports:
+        - name: https
+          containerPort: 443
+        - name: http
+          containerPort: 80
+        volumeMounts:
+        - name: drone-data
+          mountPath: /data
+      volumes:
+      - name: drone-data
+        persistentVolumeClaim:
+          claimName: drone-vol
+        
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: drone-vol
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: drone
+spec:
+  rules:
+  - host: drone.k3s.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: drone
+            port:
+              name: http
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: drone
+  labels:
+    app: drone
+spec:
+  ports:
+  - name: https
+    port: 443
+    targetPort: 443
+  - name: http
+    port: 80
+    targetPort: 80
+  selector:
+    app: drone
+  type: ClusterIP
