@@ -4,8 +4,8 @@ kubectl config set-context --current --namespace drone
 
 vared -p 'Gitea Client ID: ' -c GITEA_CLIENT_ID
 vared -p 'Gitea Client Secret: ' -c GITEA_CLIENT_SECRET
-vared -p 'Drone RPC secret: ' -c DRONE_RPC_SECRET
-vared -p 'Drone Runner UI Password: ' -c DRONE_RUNNER_UI_PASSWORD
+vared -p 'Drone RPC secret (run  > openssl rand -hex 16 <  to get one): ' -c DRONE_RPC_SECRET
+vared -p 'Drone Runner UI Password (any password you want, write it down on a sticky note on your monitor): ' -c DRONE_RUNNER_UI_PASSWORD
 
 kubectl create secret generic gitea-client-credentials \
     --from-literal=client_id=$GITEA_CLIENT_ID \
